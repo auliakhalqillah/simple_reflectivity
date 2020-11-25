@@ -1,3 +1,6 @@
+# Synthetic waveform by using reflectivity method
+# Written by Aulia Khalqillah,S.Si.,M.Si
+
 import numpy as np
 import matplotlib.pyplot as plt 
 import pandas as pd
@@ -11,30 +14,15 @@ def ricker(f,mint,maxt,stept):
     r = (1-(2*(pii**2*f**2*t**2)))*np.exp(-pii**2*f**2*t**2)
     return t, r
 
-# Function of harmonic wave
-def harmonic(A,f,vel,disp,mint,maxt,stept):
-    t = np.arange(mint,maxt,stept)
-    w = 2*(np.pi/180)*f
-    k = w/vel
-    # y = A*np.sin(2*(np.pi/180)*f*t)
-    y = A*np.exp(-1j*(w*t) - (k*disp))
-    return t,y
-
 # Initial parameters
 dt = 0.01
 mint = 0
-maxt = 900
+maxt = 1800
 N = round((maxt-mint)/dt)
-v = 2500
-A = 20
-f = 10
 f_ricker = 40
-x = 0
 nlayers = 3
-nsource = 5000
-
-# Generate harmonic wave of displacement
-time, displacement = harmonic(A,f,v,x,mint,maxt,dt) 
+nsources = 5000
+phase = 45 # in degree
 
 # Set depth by using velmod velocity model
 velmod = pd.read_csv('AK135F_AVG.csv')
@@ -71,9 +59,9 @@ print(td)
 
 # Calculate travel time that moving on x axis for each layers
 xx = 0 # difference distances between source and recivier
-sx = np.zeros((nsource,1))
-twt = np.zeros((nlayers,nsource))
-for j in range(nsource):
+sx = np.zeros((nsources,1))
+twt = np.zeros((nlayers,nsources))
+for j in range(nsources):
     t0 = 10
     for i in range(nlayers):
         t0 = t0 + td[i]
@@ -86,12 +74,12 @@ print('\nTWT')
 print(twt)
 print(len(twt[0,:]))
 
-print('\nSource')
+print('\nsources')
 print(len(sx))
 print('\n')
 
 # Check if the TWT exceed from maximum of time (maxt)
-for j in range(nsource):
+for j in range(nsources):
     for i in range(nlayers):
         if (twt[i,j] > maxt):
             twt[i,j] = maxt
@@ -99,10 +87,10 @@ for j in range(nsource):
 print(len(twt[0,:]))
 
 # Take index of RC
-n = np.zeros((nlayers,nsource))
+n = np.zeros((nlayers,nsources))
 maxindex = np.zeros((nlayers,1))
 for i in range(nlayers):
-    for j in range(nsource):
+    for j in range(nsources):
         n[i,j] = int(twt[i,j]/dt)
     print('Max index layer-%d is %d' % (i+1,int(max(n[i,:]))))
     maxindex[i] = int(max(n[i,:]))
@@ -114,14 +102,14 @@ print('\nMAX INDEX')
 print(maxindex)
 
 # Apply reflectivity to time series for each sources base don its index
-RR = np.zeros((N+1,nsource))
-for j in range(nsource):
+RR = np.zeros((N+1,nsources))
+for j in range(nsources):
     for i in range(nlayers):
         RR[int(n[i,j]),j] = cr[i-1]
 
 # Sum the reflectivity from all sources
 R = 0
-for i in range(nsource):
+for i in range(nsources):
     R = R + RR[:,i]
 
 R = R[:-1]
@@ -131,14 +119,27 @@ print(len(R))
 # Generate ricker wavelet
 tricker, wavelet = ricker(f_ricker,-10,10,0.01)
 
+# Apply phase to wavelet
+phase = np.cos(phase*(np.pi/180))
+wavelet = wavelet*phase
+
 # Convolution between wavelet and reflectivity
 trace_conv = np.convolve(wavelet,R,mode='same')
 
 # Generate time series
 final_time = np.arange(0,(len(R)*dt),dt)
 
-plt.figure(1,figsize=(10,3))
-plt.subplot(1,2,1)
+plt.figure(1,figsize=(10,6))
+plt.subplot(3,1,1)
+plt.plot(tricker, wavelet,linewidth=0.5)
+plt.grid()
+plt.title('Ricker Wavelet %d Hz' % f_ricker)
+plt.xlabel('Time (s)')
+plt.ylabel('Magnitude')
+# plt.gca().invert_yaxis()
+plt.tight_layout(pad=2)
+
+plt.subplot(3,1,2)
 plt.plot(final_time, R,linewidth=0.5)
 plt.grid()
 plt.title('Coefficient Reflectivity')
@@ -147,15 +148,12 @@ plt.ylabel('Magnitude')
 # plt.gca().invert_yaxis()
 plt.tight_layout(pad=2)
 
-# plt.figure(2,figsize=(5,3))
-plt.subplot(1,2,2)
+plt.subplot(3,1,3)
 plt.plot(final_time, trace_conv,linewidth=0.5)
 plt.grid()
-plt.title('Synthetic Waveform (Vp)')
+plt.title('Synthetic Waveform')
 plt.xlabel('Time (s)')
 plt.ylabel('Amplitude')
 # plt.gca().invert_yaxis()
 plt.tight_layout(pad=2)
 plt.show()
-
-
