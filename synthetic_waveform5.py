@@ -1,10 +1,8 @@
-# Synthetic waveform by using reflectivity method
-# Written by Aulia Khalqillah,S.Si.,M.Si
-
 import numpy as np
 import matplotlib.pyplot as plt 
 import pandas as pd
 import random 
+from scipy import signal
 
 # Function of Ricker
 def ricker(f,mint,maxt,stept):
@@ -120,8 +118,7 @@ print(len(R))
 tricker, wavelet = ricker(f_ricker,-10,10,0.01)
 
 # Apply phase to wavelet
-phase = np.cos(phase*(np.pi/180))
-wavelet = wavelet*phase
+wavelet = np.real(np.exp(1j*np.radians(phase)) * signal.hilbert(wavelet))
 
 # Convolution between wavelet and reflectivity
 trace_conv = np.convolve(wavelet,R,mode='same')
@@ -133,7 +130,7 @@ plt.figure(1,figsize=(10,6))
 plt.subplot(3,1,1)
 plt.plot(tricker, wavelet,linewidth=0.5)
 plt.grid()
-plt.title('Ricker Wavelet %d Hz' % f_ricker)
+plt.title('Ricker Wavelet %d Hz, Phase %d \u00B0' % (f_ricker, phase))
 plt.xlabel('Time (s)')
 plt.ylabel('Magnitude')
 # plt.gca().invert_yaxis()
